@@ -55,6 +55,12 @@ Once a project has been generated, run it using `uv run src/{project_name}/main.
 Depending on the values of the recursion limit and chain length, `RecursionError` may be raised. The number of the
 module from which the error was raised shows how long the import chain was before the recursion limit was hit.
 
+## Specifying the Python version
+
+UV supports running the project with a specific Python version like this: 
+
+`uv run --python 3.12.7 src/{project_name}/main.py`
+
 # Analysis
 
 Running this script in CPython 3.12.7 for various recursion limits shows a linear relationship between the
@@ -92,3 +98,16 @@ recursion limit and the maximum chain of imports.
 This suggests that the following formula applies for import chains in the range 61 - 1,249, for Python 3.12.7:
 
 _Minimum required recursion limit ~= 8 x import chain length + 18_
+
+## Other Python versions
+
+Spot checks of other CPython versions suggests that prior to 3.12 a slightly higher recursion limit is needed.
+
+| CPython version | Max import chain with a recursion limit of 1000 |
+|-----------------|------------------------------------------------|
+| 3.8             | 99                                             |
+| 3.9             | 99                                             |
+| 3.10            | 99                                             |
+| 3.11            | 99                                             |
+| 3.12            | 124                                            |
+| 3.13            | 124                                            |
