@@ -2,6 +2,11 @@
 
 This repository demonstrates how max recursion depth errors are triggered by long chains of imports in a Python project.
 
+It shows how a chain of imports (i.e. one module imports another, which imports another, which imports another) will
+cause a `RecursionError` to be raised if the Python recursion limit is not high enough.
+The relationship appears to be linear, and for every additional import in the chain the recursion limit needs to be
+raised by around 8. 
+
 # System dependencies
 
 This project requires [uv](https://docs.astral.sh/uv/) to be installed.
@@ -49,3 +54,41 @@ Once a project has been generated, run it using `uv run src/{project_name}/main.
 
 Depending on the values of the recursion limit and chain length, `RecursionError` may be raised. The number of the
 module from which the error was raised shows how long the import chain was before the recursion limit was hit.
+
+# Analysis
+
+Running this script in CPython 3.12.7 for various recursion limits shows a linear relationship between the
+recursion limit and the maximum chain of imports.  
+
+| Recursion limit | Max import chain |
+|-----------------|------------------|
+| 500             | 61               |
+| 600             | 74               |
+| 700             | 86               |
+| 800             | 99               |
+| 900             | 111              |
+| 1000            | 124              |
+| 1100            | 136              |
+| 1200            | 149              |
+| 1300            | 161              |
+| 1400            | 174              |
+| 1500            | 186              |
+| 1600            | 199              |
+| 1700            | 211              |
+| 1800            | 224              |
+| 1900            | 236              |
+| 2000            | 249              |
+| 3000            | 374              |
+| 4000            | 499              |
+| 5000            | 625              |
+| 6000            | 750              |
+| 7000            | 874              |
+| 8000            | 999              |
+| 9000            | 1124             |
+| 10000           | 1249             |
+
+![Chart showing recursion limits for import chain lengths](chart.png)
+
+This suggests that the following formula applies for import chains in the range 61 - 1,249, for Python 3.12.7:
+
+_Minimum required recursion limit ~= 8 x import chain length + 18_
