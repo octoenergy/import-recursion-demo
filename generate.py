@@ -93,6 +93,67 @@ def _create_module(
     (package_path / f"{module_name}.py").write_text(module_contents)
 
 
+@click.command()
+@click.option("--project-name", default="funcdemo")
+@click.option("--chain-length", default=150)
+@click.option("--recursion-limit", default=1000)
+def generate_function_calls(
+    project_name: str, chain_length: int, recursion_limit: int
+) -> None:
+    src_path = PROJECT_ROOT / "src"
+    module_path = src_path / f"{project_name}.py"
+
+    # Create the src, if it doesn't exist.
+    src_path.mkdir(exist_ok=True)
+    # Remove the existing file, if it exists.
+    shutil.rmtree(module_path, ignore_errors=True)
+
+    content = dedent(f"""\
+        import sys
+    
+        sys.setrecursionlimit({recursion_limit})
+    
+        print(f"Calling a chain of {chain_length} functions with a recursion limit of {recursion_limit}...")
+        """)
+    # Create modules for each link in import chain.
+    for position in range(1, chain_length + 1):
+        if (position - 1) % 10 == 0:
+            print(f"Writing {position}/{chain_length}.")
+        is_last_function = position == chain_length
+        content += _build_function_call_content(position, is_last_function)
+
+    content += dedent("""\
+    
+    
+        if __name__ == "__main__":
+            function_001()
+    """)
+    module_path.write_text(content)
+
+    print(f"Generated demo project at {module_path}.")
+    print("You can now run the project like this:\n")
+    print(f"    uv run src/{project_name}.py\n")
+
+
+def _build_function_call_content(position_in_chain: int, is_last_function: bool) -> str:
+    function_name = f"function_{str(position_in_chain).zfill(3)}"
+    if is_last_function:
+        return dedent(f"""\
+        
+        
+            def {function_name}():
+                print("Got to the end of the call chain.")
+        """)
+    else:
+        next_i = position_in_chain + 1
+        next_function_name = f"function_{str(next_i).zfill(3)}"
+        return dedent(f"""\
+        
+        
+            def {function_name}():
+                {next_function_name}()
+        """)
+
+
 if __name__ == "__main__":
-    generate()
-    # generate(project_name="demo", chain_length=100, recursion_limit=100)
+    generate_function_calls()
