@@ -134,7 +134,7 @@ importing modules in a different order. This is demonstrated by the `--preimport
 1. Generate a project with a long import chain:
    `uv run generate.py --chain-length=2000 --recursion-limit=1000000`
 2. Verify that a `RecursionError` is raised when you run `uv run src/demo/main.py`.
-   (If it doesn't increase `chain-length` until it does.)
+   (If it doesn't, increase `chain-length` until it does.)
 3. Generate a project with the same import chain length - this time pre-importing the modules:
    `uv run generate.py --chain-length=2000 --recursion-limit=1000000 --preimport-modules`.
 4. Run `uv run src/demo/main.py`. No `RecursionError` is raised.
