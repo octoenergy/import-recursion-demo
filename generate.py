@@ -19,7 +19,8 @@ PACKAGE_NAME = "myproject"
 @click.option("--project-name", default="demo")
 @click.option("--chain-length", default=150)
 @click.option("--recursion-limit", default=1000)
-def generate(project_name: str, chain_length: int, recursion_limit: int) -> None:
+@click.option("--preimport-modules", default=False, is_flag=True)
+def generate(project_name: str, chain_length: int, recursion_limit: int, preimport_modules: bool) -> None:
     """
     Generate a Python project with an import chain of the supplied length.
 
@@ -28,6 +29,7 @@ def generate(project_name: str, chain_length: int, recursion_limit: int) -> None
                       already exists, it will be overwritten.
         chain_length: The length of the import chain triggered by running main.py.
         recursion_limit: The Python recursion limit that will be set before triggering the import chain.
+        preimport_modules: If True, import all of the modules in reverse order before triggering the import chain.
 
     For the project structure, see the repository README.
     """
@@ -39,7 +41,7 @@ def generate(project_name: str, chain_length: int, recursion_limit: int) -> None
     # Remove the existing package, if it exists.
     shutil.rmtree(package_path, ignore_errors=True)
 
-    _create_package_and_main(package_path, project_name, chain_length, recursion_limit)
+    _create_package_and_main(package_path, project_name, chain_length, recursion_limit, preimport_modules)
 
     # Create modules for each link in import chain.
     for position in range(1, chain_length + 1):
@@ -54,27 +56,38 @@ def generate(project_name: str, chain_length: int, recursion_limit: int) -> None
 
 
 def _create_package_and_main(
-    package_path: Path, project_name: str, chain_length: int, recursion_limit: int
+    package_path: Path, project_name: str, chain_length: int, recursion_limit: int, preimport_modules: bool
 ) -> None:
     package_path.mkdir()
     (package_path / f"__init__.py").write_text("")
-    (package_path / "main.py").write_text(
-        dedent(f"""\
-            from pathlib import Path
-            import sys
+    main_contents = dedent(f"""\
+        from pathlib import Path
+        import sys
+    
+        # Add the src directory to the Python path so we can import this package.
+        PATH_TO_SRC = Path(__file__).parent.parent
+        sys.path.append(str(PATH_TO_SRC))
+    
+        sys.setrecursionlimit({recursion_limit})
+        
+        print(f"Importing a chain of {chain_length} modules with a recursion limit of {recursion_limit}...")
 
-            # Add the src directory to the Python path so we can import this package.
-            PATH_TO_SRC = Path(__file__).parent.parent
-            sys.path.append(str(PATH_TO_SRC))
+    """)
 
-            sys.setrecursionlimit({recursion_limit})
-            
-            print(f"Importing a chain of {chain_length} modules with a recursion limit of {recursion_limit}...")
-            
-            # Begin the chain of imports.
-            from {project_name} import mod_001
-            """)
+    if preimport_modules:
+        # Add an import for every module, in reverse order.
+        main_contents += "# Preimport modules in reverse order.\n"
+        for position_in_chain in range(chain_length, 1, -1):
+            module_name = f"mod_{str(position_in_chain).zfill(3)}"
+            main_contents += f"from {project_name} import {module_name}\n"
+        main_contents += "\n"
+
+    main_contents += dedent(f"""\
+        # Begin the chain of imports.
+        from {project_name} import mod_001
+        """
     )
+    (package_path / "main.py").write_text(main_contents)
 
 
 def _create_module(
@@ -95,4 +108,3 @@ def _create_module(
 
 if __name__ == "__main__":
     generate()
-    # generate(project_name="demo", chain_length=100, recursion_limit=100)
