@@ -4,7 +4,11 @@ This repository demonstrates how max recursion depth errors are triggered by lon
 
 It shows how a chain of imports (i.e. one module imports another, which imports another, which imports another) will
 cause a `RecursionError` to be raised if the Python recursion limit is not high enough.
-The relationship appears to be linear, and for every additional import in the chain the recursion limit needs to be
+
+Raising the recursion limit above around 10,000 seems to have no effect: the maximum import chain possible seems to be 1,259.
+However, it is possible to import longer chains if some of the modules have already been imported.   
+
+The relationship appears to be linear for chains below 1,249: every additional import in the chain the recursion limit needs to be
 raised by around 8. 
 
 # System dependencies
@@ -21,7 +25,7 @@ uv run generate_project.py
 
 Or:
 
-`uv run generate.py --project-name=demo --chain-length=150 --recursion-limit=1000`
+`uv run generate.py --project-name=demo --chain-length=150 --recursion-limit=1000 --preimport-modules`
 
 ## Optional arguments
 
@@ -29,6 +33,7 @@ Or:
                       already exists, it will be overwritten. Default: `demo`.
 - `--chain-length`: The length of the import chain triggered by running `main.py`. Default: 150.
 - `--recursion-limit`: The Python recursion limit that will be set before triggering the import chain. Default: 1000.
+- `--preimport-modules`: If this flag is provided, import all the modules in reverse order before triggering the import chain.
 
 ## Generated project structure
 
@@ -96,8 +101,13 @@ recursion limit and the maximum chain of imports.
 | 8000            | 999              |
 | 9000            | 1124             |
 | 10000           | 1249             |
+| 11000           | 1249             |
+| 20000           | 1249             |
+| 30000           | 1249             |
 
 ![Chart showing recursion limits for import chain lengths](chart.png)
+
+Notice that it does not seem to be possible to increase the import chain beyond 1,249.
 
 This suggests that the following formula applies for import chains in the range 61 - 1,249, for Python 3.12.7:
 
@@ -115,3 +125,16 @@ Spot checks of other CPython versions suggests that prior to 3.12 a slightly hig
 | 3.11            | 99                                             |
 | 3.12            | 124                                            |
 | 3.13            | 124                                            |
+
+## Importing longer chains of modules
+
+While there appears to be a hard limit on the length of an import chain, it's possible to work around this by
+importing modules in a different order. This is demonstrated by the `--preimport-modules` command flag:
+
+1. Generate a project with a long import chain:
+   `uv run generate.py --chain-length=2000 --recursion-limit=1000000`
+2. Verify that a `RecursionError` is raised when you run `uv run src/demo/main.py`.
+   (If it doesn't increase `chain-length` until it does.)
+3. Generate a project with the same import chain length - this time pre-importing the modules:
+   `uv run generate.py --chain-length=2000 --recursion-limit=1000000 --preimport-modules`.
+4. Run `uv run src/demo/main.py`. No `RecursionError` is raised.
